@@ -1,9 +1,9 @@
-
 ;; crowd-funding
-;; <add a description here>
+;; this contract manages campaigns
 
 ;; constants
 ;;
+(define-constant contract-owner tx-sender)
 
 ;; data maps and vars
 ;;

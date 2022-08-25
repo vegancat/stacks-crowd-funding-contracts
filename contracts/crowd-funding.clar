@@ -7,11 +7,19 @@
 
 (define-constant campaign-id-should-be-a-positive-integer (err u100))
 (define-constant campaign-id-already-used (err u101))
+(define-constant only-contract-owner-can-approve (err u102))
+(define-constant campaign-not-found (err u103))
 
 ;; data maps and vars
 (define-map campaigns { id: uint } { approved: bool, balance: uint, owner: principal, name: (string-ascii 50), description: (string-ascii 256), logo: (string-ascii 256)})
 
 ;; private functions
+(define-private (get-owner (id uint)) 
+  (begin
+    (asserts! (> id u0) campaign-id-should-be-a-positive-integer)
+    (ok (get owner (map-get? campaigns {id: id})))
+  )
+)
 
 ;; public functions
 (define-read-only (is-id-available (id uint)) 
@@ -27,7 +35,21 @@
     (asserts! (is-eq (is-id-available id) (ok true)) campaign-id-already-used)
     (try! (stx-transfer? create-campaign-fee tx-sender (as-contract tx-sender)))
     ;; #[allow(unchecked_data)]
-    (map-set campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
+    (map-insert campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
     (ok id)
+  )
+)
+
+(define-public (set-approval (id uint) (state bool)) 
+  (begin
+    (let 
+      (
+        (campaign (unwrap! (map-get? campaigns {id: id}) campaign-not-found))
+      )
+      (asserts! (> id u0) campaign-id-should-be-a-positive-integer)
+      (asserts! (is-eq contract-owner tx-sender) only-contract-owner-can-approve)
+      (map-set campaigns {id: id} (merge campaign {approved: state}))
+      (ok true)
+    )
   )
 )

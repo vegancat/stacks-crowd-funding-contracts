@@ -9,6 +9,8 @@
 (define-constant campaign-id-already-used (err u101))
 (define-constant only-contract-owner-can-approve (err u102))
 (define-constant campaign-not-found (err u103))
+(define-constant only-campaign-owner-can-withdraw (err u104))
+(define-constant invalid-balance (err u105))
 
 ;; data maps and vars
 (define-map campaigns { id: uint } { approved: bool, balance: uint, owner: principal, name: (string-ascii 50), description: (string-ascii 256), logo: (string-ascii 256)})
@@ -49,6 +51,21 @@
       (asserts! (> id u0) campaign-id-should-be-a-positive-integer)
       (asserts! (is-eq contract-owner tx-sender) only-contract-owner-can-approve)
       (map-set campaigns {id: id} (merge campaign {approved: state}))
+      (ok true)
+    )
+  )
+)
+
+(define-public (withdraw (id uint)) 
+  (begin
+    (let 
+      (
+        (owner (unwrap! (get owner (map-get? campaigns {id: id})) invalid-balance))
+        (balance (unwrap! (get balance (map-get? campaigns {id: id})) invalid-balance))
+        (contract-address (as-contract tx-sender))
+      )
+      (asserts! (is-eq owner tx-sender) only-campaign-owner-can-withdraw)
+      (try! (as-contract (stx-transfer? balance contract-address owner)))
       (ok true)
     )
   )

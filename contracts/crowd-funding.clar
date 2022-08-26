@@ -40,6 +40,10 @@
     (map-get? campaigns {id: id}) 
 )
 
+(define-read-only (get-campaign-creation-fee) 
+  (ok (var-get create-campaign-fee))
+)
+
 
 (define-public (create-campaign (id uint) (name (string-ascii 50)) (description (string-ascii 256)) (logo (string-ascii 256))) 
   (begin
@@ -125,14 +129,9 @@
 
 (define-public (update-campaign-creation-fee (new-fee uint)) 
   (begin
-    (let 
-      (
-        (contract-address (as-contract tx-sender))
-      )
       (asserts! (is-eq tx-sender contract-owner) only-contract-owner-can-update-fees)
       (asserts! (> new-fee u0) fee-should-be-a-positive-integer)
       (var-set create-campaign-fee (+ (var-get create-campaign-fee) new-fee))
       (ok true)
-    ) 
   )
 )

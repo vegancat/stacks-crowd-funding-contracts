@@ -44,6 +44,10 @@
   (ok (var-get create-campaign-fee))
 )
 
+(define-read-only (get-accumulated-fees) 
+  (ok (var-get accumulated-fees))
+)
+
 
 (define-public (create-campaign (id uint) (name (string-ascii 50)) (description (string-ascii 256)) (logo (string-ascii 256))) 
   (begin
@@ -131,7 +135,7 @@
   (begin
       (asserts! (is-eq tx-sender contract-owner) only-contract-owner-can-update-fees)
       (asserts! (> new-fee u0) fee-should-be-a-positive-integer)
-      (var-set create-campaign-fee (+ (var-get create-campaign-fee) new-fee))
+      (var-set create-campaign-fee new-fee)
       (ok true)
   )
 )

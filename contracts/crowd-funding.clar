@@ -18,7 +18,7 @@
 (define-constant fee-should-be-a-positive-integer (err u110))
 
 ;; data maps and vars
-(define-map campaigns { id: uint } { approved: bool, balance: uint, owner: principal, name: (string-ascii 50), description: (string-ascii 256), logo: (string-ascii 256)})
+(define-map campaigns { id: uint } { approved: bool, balance: uint, target: uint, owner: principal, name: (buff 50), description: (buff 256), logo: (buff 256)})
 (define-data-var last-used-id uint u0)
 (define-data-var accumulated-fees uint u0)
 (define-data-var create-campaign-fee uint u2000000)
@@ -49,7 +49,7 @@
 )
 
 
-(define-public (create-campaign (id uint) (name (string-ascii 50)) (description (string-ascii 256)) (logo (string-ascii 256))) 
+(define-public (create-campaign (id uint) (name (buff 50)) (description (buff 256)) (logo (buff 256)) (target uint)) 
   (begin
     (let 
       (
@@ -60,7 +60,7 @@
       (asserts! (is-eq id (+ (unwrap! (get-last-used-id) invalid-last-used) u1)) campaign-id-is-not-last-used-id-plus-one)
       (try! (stx-transfer? fee tx-sender contract-address))
       ;; #[allow(unchecked_data)]
-      (map-insert campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
+      (map-insert campaigns {id: id} {name: name, balance: u0, target: target, description: description, logo: logo, approved: false, owner: tx-sender})
       (var-set last-used-id (+ (var-get last-used-id) u1))
       (var-set accumulated-fees (+ (var-get accumulated-fees) fee))
       (ok id)

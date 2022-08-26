@@ -14,10 +14,12 @@
 (define-constant donation-should-be-a-positive-interger (err u105))
 (define-constant invalid-last-used (err u106))
 (define-constant campaign-id-should-be-a-positive-integer (err u107))
+(define-constant only-contract-owner-can-withdraw-fees (err u108))
 
 ;; data maps and vars
 (define-map campaigns { id: uint } { approved: bool, balance: uint, owner: principal, name: (string-ascii 50), description: (string-ascii 256), logo: (string-ascii 256)})
 (define-data-var last-used-id uint u0)
+(define-data-var accumulated-fees uint u0)
 ;; private functions
 
 (define-private (get-owner (id uint)) 
@@ -39,12 +41,19 @@
 
 (define-public (create-campaign (id uint) (name (string-ascii 50)) (description (string-ascii 256)) (logo (string-ascii 256))) 
   (begin
-    (asserts! (is-eq id (+ (unwrap! (get-last-used-id) invalid-last-used) u1)) campaign-id-is-not-last-used-id-plus-one)
-    (try! (stx-transfer? create-campaign-fee tx-sender (as-contract tx-sender)))
-    ;; #[allow(unchecked_data)]
-    (map-insert campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
-    (var-set last-used-id (+ (var-get last-used-id) u1))
-    (ok id)
+    (let 
+      (
+        (contract-address (as-contract tx-sender))
+      )
+    
+      (asserts! (is-eq id (+ (unwrap! (get-last-used-id) invalid-last-used) u1)) campaign-id-is-not-last-used-id-plus-one)
+      (try! (stx-transfer? create-campaign-fee tx-sender contract-address))
+      ;; #[allow(unchecked_data)]
+      (map-insert campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
+      (var-set last-used-id (+ (var-get last-used-id) u1))
+      (var-set accumulated-fees (+ (var-get accumulated-fees) create-campaign-fee))
+      (ok id)
+    )
   )
 )
 
@@ -94,5 +103,19 @@
       (map-set campaigns {id: id} (merge campaign {balance: new-balance}))
       (ok new-balance)
     )
+  )
+)
+
+(define-public (withdraw-fees) 
+  (begin
+    (let 
+      (
+        (contract-address (as-contract tx-sender))
+        (accumulated-fees-from-creations (var-get accumulated-fees))
+      )
+      (asserts! (is-eq tx-sender contract-owner) only-contract-owner-can-withdraw-fees)
+      (try! (as-contract  (stx-transfer? accumulated-fees-from-creations contract-address contract-owner)))
+      (ok true)
+    ) 
   )
 )

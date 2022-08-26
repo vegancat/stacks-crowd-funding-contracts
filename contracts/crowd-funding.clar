@@ -3,7 +3,6 @@
 
 ;; constants
 (define-constant contract-owner tx-sender)
-(define-constant create-campaign-fee u2000000)
 
 (define-constant campaign-id-is-not-last-used-id-plus-one (err u100))
 (define-constant campaign-id-already-used (err u101))
@@ -15,11 +14,14 @@
 (define-constant invalid-last-used (err u106))
 (define-constant campaign-id-should-be-a-positive-integer (err u107))
 (define-constant only-contract-owner-can-withdraw-fees (err u108))
+(define-constant only-contract-owner-can-update-fees (err u109))
+(define-constant fee-should-be-a-positive-integer (err u110))
 
 ;; data maps and vars
 (define-map campaigns { id: uint } { approved: bool, balance: uint, owner: principal, name: (string-ascii 50), description: (string-ascii 256), logo: (string-ascii 256)})
 (define-data-var last-used-id uint u0)
 (define-data-var accumulated-fees uint u0)
+(define-data-var create-campaign-fee uint u2000000)
 ;; private functions
 
 (define-private (get-owner (id uint)) 
@@ -44,14 +46,15 @@
     (let 
       (
         (contract-address (as-contract tx-sender))
+        (fee (var-get create-campaign-fee))
       )
     
       (asserts! (is-eq id (+ (unwrap! (get-last-used-id) invalid-last-used) u1)) campaign-id-is-not-last-used-id-plus-one)
-      (try! (stx-transfer? create-campaign-fee tx-sender contract-address))
+      (try! (stx-transfer? fee tx-sender contract-address))
       ;; #[allow(unchecked_data)]
       (map-insert campaigns {id: id} {name: name, balance: u0, description: description, logo: logo, approved: false, owner: tx-sender})
       (var-set last-used-id (+ (var-get last-used-id) u1))
-      (var-set accumulated-fees (+ (var-get accumulated-fees) create-campaign-fee))
+      (var-set accumulated-fees (+ (var-get accumulated-fees) fee))
       (ok id)
     )
   )
@@ -115,6 +118,20 @@
       )
       (asserts! (is-eq tx-sender contract-owner) only-contract-owner-can-withdraw-fees)
       (try! (as-contract  (stx-transfer? accumulated-fees-from-creations contract-address contract-owner)))
+      (ok true)
+    ) 
+  )
+)
+
+(define-public (update-campaign-creation-fee (new-fee uint)) 
+  (begin
+    (let 
+      (
+        (contract-address (as-contract tx-sender))
+      )
+      (asserts! (is-eq tx-sender contract-owner) only-contract-owner-can-update-fees)
+      (asserts! (> new-fee u0) fee-should-be-a-positive-integer)
+      (var-set create-campaign-fee (+ (var-get create-campaign-fee) new-fee))
       (ok true)
     ) 
   )
